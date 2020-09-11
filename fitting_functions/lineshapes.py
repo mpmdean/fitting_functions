@@ -37,8 +37,8 @@ def paramagnon(x, amplitude, center, sigma, res, kBT):
 
     Form of equation from https://journals.aps.org/prb/pdf/10.1103/PhysRevB.93.214513
     (eq 4)
-
     
+    N.B. This should be updated to use the function we contributed to lmfit at some point.
     """
     step = min(np.abs(np.mean(np.diff(x))), sigma/20, res/20)
     x_paramagnon = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
@@ -212,3 +212,65 @@ def error(x, amplitude=1., center=0., sigma=1.):
     For amplitude=1 sigma>0 this crosses over from 0 to 1 with increasing x
     Vice verse for sigma<0 """
     return amplitude/2*erf((x-center)/sigma) + 0.5
+
+
+def power_decay(x, amplitude=1, center=0, eta=1):
+    """Step and decay function
+    
+    Parameters
+    ----------
+    x : array
+        independent variable
+    amplitude : float
+        factor proportional to height 
+    center : float
+        pole of intensity onset
+    eta : float
+        decay factor for continuum
+    
+    Returns
+    -------
+    y : array
+        dependent variable
+    """
+    decay_factor = 1/(x**2 - center**2)**(1-eta/2)
+    if isinstance(decay_factor, (int, float)):
+        decay_factor = max(tiny, decay_factor)
+    else:
+        decay_factor[np.where(isnan(decay_factor))] = tiny
+        decay_factor[np.where(decay_factor <= tiny)] = tiny
+
+    return amplitude*np.heaviside(x-center, 1)*decay_factor
+
+
+def power_decay_convolved(x, amplitude=1, center=0, eta=1, res=1):
+    """Step and decay function
+    
+    Parameters
+    ----------
+    x : array
+        independent variable
+    amplitude : float
+        factor proportional to height 
+    center : float
+        pole of intensity onset
+    eta : float
+        decay factor for continuum
+    res : float
+        Resolution -- sigma parameter of Gaussian resolution used
+        for convolution. FWHM of a gaussian is 2*np.sqrt(2*np.log(2))=2.355
+    
+    Returns
+    -------
+    y : array
+        dependent variable
+    """
+    step = min(np.abs(np.mean(np.diff(x)))/5, res/20)
+    x_continuum = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
+    
+    raw_continuum = power_decay(x_continuum, amplitude=amplitude,
+                                center=center, eta=eta)
+
+    kernal = make_gaussian_kernal(x_continuum, res)
+    y_continuum = convolve(raw_continuum, kernal)
+    return np.interp(x, x_continuum, y_continuum)
