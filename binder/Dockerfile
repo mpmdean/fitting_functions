@@ -1,1 +1,1 @@
-FROM bnlxray/main:2397990af4f7
+FROM bnlxray/main:aaebdc84b98c

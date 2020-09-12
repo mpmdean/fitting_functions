@@ -1,5 +1,5 @@
 import numpy as np
-from lmfit.lineshapes import lorentzian
+from lmfit.lineshapes import lorentzian, tiny
 from scipy.special import erf
 
 
@@ -233,11 +233,12 @@ def power_decay(x, amplitude=1, center=0, eta=1):
     y : array
         dependent variable
     """
-    decay_factor = 1/(x**2 - center**2)**(1-eta/2)
+    x0sq = (x**2 - center**2)
+    decay_factor = np.sign(x0sq)/np.abs(x0sq)**(1-eta/2)
     if isinstance(decay_factor, (int, float)):
         decay_factor = max(tiny, decay_factor)
     else:
-        decay_factor[np.where(isnan(decay_factor))] = tiny
+        decay_factor[np.where(np.isnan(decay_factor))] = tiny
         decay_factor[np.where(decay_factor <= tiny)] = tiny
 
     return amplitude*np.heaviside(x-center, 1)*decay_factor
@@ -265,7 +266,7 @@ def power_decay_convolved(x, amplitude=1, center=0, eta=1, res=1):
     y : array
         dependent variable
     """
-    step = min(np.abs(np.mean(np.diff(x)))/5, res/20)
+    step = min(np.abs(np.mean(np.diff(x)))/5, np.abs(res)/20)
     x_continuum = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
     
     raw_continuum = power_decay(x_continuum, amplitude=amplitude,
