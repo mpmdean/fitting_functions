@@ -275,3 +275,91 @@ def power_decay_convolved(x, amplitude=1, center=0, eta=1, res=1):
     kernal = make_gaussian_kernal(x_continuum, res)
     y_continuum = convolve(raw_continuum, kernal)
     return np.interp(x, x_continuum, y_continuum)
+
+
+def Bmn(m, n, g):
+    """Franck-Condon factor
+    
+    Parameters
+    ----------
+    m : int
+    n : int
+    g : float
+        unitless electron phonon coupling factor
+    
+    Returns
+    -------
+    factor : float
+        Value of Franck-Condon factor
+    """
+    fac = np.math.factorial
+    prefac = (-1)**m*np.sqrt(np.exp(-g)*fac(m)*fac(n))
+    sumterm = sum((-g)**l*np.sqrt(g)**(m - n)/(fac(n - l) * fac(l) * fac(m - n + l))
+                 for l in range(n + 1))
+    return prefac*sumterm
+
+
+def phonon_amplitude(nprime, g, omega0, omega_det, Gamma, terms=100):
+    """Amplitude of a phonon within Ament model
+    [Europhysics Lett. 95, 27008 (2011)]
+
+    Parameters
+    ----------
+    nprime : int
+        Phonon index
+    g : float
+        unitless electron phonon coupling factor
+    omega0 : float
+        Phonon energy
+    omega_det : float
+        Energy detuning from resonance
+    Gamma : float
+        Core-hole lifetime (half width)
+    terms : int
+        Number of terms to use in infinite sum
+        Default (100)
+
+    Returns
+    -------
+    A : float
+        Amplitude (i.e. square root intensity ) for 
+        phonon
+    """
+    A = sum(Bmn(max(nprime, n), min(nprime, n), g)*Bmn(n, 0, g)
+            /(omega_det + 1j*Gamma + (g - n)*omega0)
+           for n in range(terms))
+    return A
+
+
+def phonons(x, g=1., omega0=1., sigma=1., omega_det=0., numphonons=15, Gamma=1.):
+    """Spectrum of phonons within Ament model
+    [Europhysics Lett. 95, 27008 (2011)]
+
+    Parameters
+    ----------
+    x : array
+        independent variable
+    g : float
+        unitless electron phonon coupling factor
+    omega0 : float
+        Phonon energy
+    sigma : float
+        Lorentizan phonon width
+    omega_det : float
+        Energy detuning from resonance
+    numphonons : int
+        Number of phonons
+    Gamma : float
+
+    Returns
+    -------
+    A : float
+        Amplitude (i.e. square root intensity ) for 
+        phonon
+    """
+    modes = []
+    for nprime in range(1, numphonons + 1):
+        A = phonon_amplitude(nprime, g, omega0, omega_det, Gamma, terms=100)
+        modes.append(lorentzian(x, amplitude=A, center=omega0*nprime, sigma=sigma))
+        
+    return np.abs(sum(modes))**2
