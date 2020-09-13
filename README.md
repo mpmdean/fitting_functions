@@ -1,5 +1,6 @@
 # fitting.git
-Some example fits
+Functions useful for fitting along with examples
+
 Work with this by installing [docker](https://www.docker.com/) and pip and then running
 
 ~~~
