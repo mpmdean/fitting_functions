@@ -21,7 +21,7 @@ def paramagnon(x, amplitude, center, sigma, res, kBT):
     x : array
         independent variable
     amplitude: float
-        integrated peak intensity
+        peak height
     center : float
         Plot of osciallator -- not the same as the peak
     sigma : float
@@ -49,6 +49,47 @@ def paramagnon(x, amplitude, center, sigma, res, kBT):
 
     kernal = make_gaussian_kernal(x_paramagnon, res)
     y_paramagnon = convolve(chi_paramagnon * bose(x_paramagnon, kBT), kernal)
+    return np.interp(x, x_paramagnon, y_paramagnon)
+
+
+def paramagnon_integrated_I(x, amplitude, center, sigma, res, kBT):
+    """Damped harmonic oscillator convolved with resolution
+    
+    Parameters
+    ----------
+    x : array
+        independent variable
+    amplitude: float
+        Integrated intensity prior to convolution
+    center : float
+        Plot of osciallator -- not the same as the peak
+    sigma : float
+        damping
+        This corresponds to HWHM when sigma<<center
+    res : float
+        Resolution -- sigma parameter of Gaussian resolution used
+        for convolution. FWHM of a gaussian is 2*np.sqrt(2*np.log(2))=2.355
+    kBT : float
+        Temperature for Bose factor.
+        kBT should be in the same units as x
+        n.b. kB = 8.617e-5 eV/K
+
+    Form of equation from https://journals.aps.org/prb/pdf/10.1103/PhysRevB.93.214513
+    (eq 4)
+    
+    N.B. This should be updated to use the function we contributed to lmfit at some point.
+    """
+    step = min(np.abs(np.mean(np.diff(x))), sigma/20, res/20)
+    x_paramagnon = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
+
+    y0 = (2*x_paramagnon*sigma*center /
+          (( x_paramagnon**2 - center**2)**2 +
+           (x_paramagnon*sigma)**2 )) * bose(x_paramagnon, kBT)
+    
+    y1 = amplitude*y0/np.trapz(y0, x=x_paramagnon)
+    
+    kernal = make_gaussian_kernal(x_paramagnon, res)
+    y_paramagnon = convolve(y1, kernal)
     return np.interp(x, x_paramagnon, y_paramagnon)
 
 

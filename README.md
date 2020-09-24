@@ -12,4 +12,6 @@ Change `tree` to `lab` in the URL for JupyterLab.
 
 Reinstall a changed version of fitting_functions into container by executing
 `!python setup.py install` within jupyter after running `cd ~` to move into
-the home folder.
+the home folder. The old package can be removed via
+`rm -r /opt/conda/lib/python3.8/site-packages/fitting_functions*`
+if needed.
