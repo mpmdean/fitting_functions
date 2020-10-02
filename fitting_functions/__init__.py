@@ -3,4 +3,4 @@ from .lineshapes import (paramagnon, paramagnon_integrated_I, magnon, bose,
                          antisymlorz, plane2D, plane3D, plane3Dcentered,
                          lorentzianSq2D, lorentzianSq2DRot, lorentzianSq3D, error,
                          power_decay, power_decay_convolved,
-                         Bmn, phonon_amplitude, phonons)
+                         Bmn, phonon_amplitude, phonons, skewed_voigt_convolved)

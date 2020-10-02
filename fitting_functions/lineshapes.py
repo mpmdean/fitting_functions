@@ -1,5 +1,5 @@
 import numpy as np
-from lmfit.lineshapes import lorentzian, tiny
+from lmfit.lineshapes import lorentzian, skewed_voigt, tiny
 from scipy.special import erf
 
 
@@ -404,3 +404,38 @@ def phonons(x, g=1., omega0=1., sigma=1., omega_det=0., numphonons=15, Gamma=1.)
         modes.append(lorentzian(x, amplitude=A, center=omega0*nprime, sigma=sigma))
         
     return np.abs(sum(modes))**2
+
+
+def skewed_voigt_convolved(x, amplitude=1.0, center=0.0, sigma=1.0,
+                           gamma=None, skew=0.0, res=1.):
+    """skewed_voigt convolved with resolution
+    
+    Parameters
+    ----------
+    x : array
+        independent variable
+    amplitude: float
+        see lmfit.skewed_voigt
+    center : float
+        see lmfit.skewed_voigt
+    sigma : float
+        see lmfit.skewed_voigt
+    gamma : float
+        see lmfit.skewed_voigt
+    skew : float
+        see lmfit.skewed_voigt
+    res : float
+        Resolution -- sigma parameter of Gaussian resolution used
+        for convolution. FWHM of a gaussian is 2*np.sqrt(2*np.log(2))=2.355
+    """
+    if gamma is None:
+        step = min(np.abs(np.mean(np.diff(x))), sigma/20, res/20)
+    else:
+        step = min(np.abs(np.mean(np.diff(x))), sigma/20, gamma/20, res/20)
+    x_ = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
+
+    y_ = skewed_voigt(x_, amplitude, center, sigma, gamma, skew)
+        
+    kernal = make_gaussian_kernal(x_, res)
+    y_convolved = convolve(y_, kernal)
+    return np.interp(x, x_, y_convolved)
