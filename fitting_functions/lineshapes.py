@@ -222,10 +222,11 @@ def lorentzianSq2DRot(X, Y, amplitude=1.,
         (((X-centerx)/sigmax)**2 + ((Y-centery)/sigmay)**2))
     Note that angle is in degrees
     """
-    Xrot = X*cos(angle) + Y*sin(angle)
-    Yrot = X*sin(angle) + Y*cos(angle)
+    Xrot = (X - centerx) * cos(angle) - (Y - centery) * sin(angle)
+    Yrot = (X - centerx) * sin(angle) + (Y - centery) * cos(angle)
+
     I = amplitude**2/(2*np.pi) * 1/(1 +
-        (((Xrot-centerx)/sigmax)**2 + ((Yrot-centery)/sigmay)**2))
+        (((Xrot-centerx)/sigmax)**2 + ((Yrot-centery)/sigmay)**2))**2
 
     return I
 
@@ -242,7 +243,7 @@ def lorentzianSq3D(X, Y, Z, amplitude=1.,
     I = 1/(1 + (((X-centerx)/sigmax)**2 +
                         ((Y-centery)/sigmay)**2 +
                         ((Z-centerz)/sigmaz)**2))
-    I *= amplitude**2/(2*np.pi)
+    I = amplitude**2/(2*np.pi) ** 2
     return I
 
 
