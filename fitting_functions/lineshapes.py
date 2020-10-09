@@ -13,7 +13,7 @@ def sin(angle):
     return np.sin(angle*np.pi/180.)
 
 
-def paramagnon(x, amplitude, center, sigma, res, kBT):
+def paramagnon(x, amplitude=1, center=0, sigma=.1, res=.1, kBT=.1):
     """Damped harmonic oscillator convolved with resolution
     
     Parameters
@@ -52,7 +52,7 @@ def paramagnon(x, amplitude, center, sigma, res, kBT):
     return np.interp(x, x_paramagnon, y_paramagnon)
 
 
-def paramagnon_integrated_I(x, amplitude, center, sigma, res, kBT):
+def paramagnon_integrated_I(x, amplitude=1, center=0, sigma=.1, res=.1, kBT=.1):
     """Damped harmonic oscillator convolved with resolution
     
     Parameters
@@ -93,7 +93,7 @@ def paramagnon_integrated_I(x, amplitude, center, sigma, res, kBT):
     return np.interp(x, x_paramagnon, y_paramagnon)
 
 
-def magnon(x, amplitude, center, sigma, res, kBT):
+def magnon(x, amplitude=1, center=0, sigma=.1, res=.1, kBT=.1):
     """Return a 1-dimensional Antisymmeterized Lorenzian multiplied by Bose factor
     and convolved with resolution.
     magnon(x, amplditude, center, sigma, res, kBT) =
@@ -255,45 +255,54 @@ def error(x, amplitude=1., center=0., sigma=1.):
     return amplitude/2*erf((x-center)/sigma) + 0.5
 
 
-def power_decay(x, amplitude=1, center=0, eta=1):
+def power_decay(x, amplitude=1, center=0, eta=1, small_number=1e-3):
     """Step and decay function
-    
+   
     Parameters
     ----------
     x : array
         independent variable
     amplitude : float
-        factor proportional to height 
+        integrated intensity
     center : float
         pole of intensity onset
     eta : float
         decay factor for continuum
-    
+    small_number : float
+        Since this is a nasty diverging function, a "small"
+        number is needed to suppress the divergence.
+   
     Returns
     -------
     y : array
         dependent variable
-    """
-    x0sq = (x**2 - center**2)
-    decay_factor = np.sign(x0sq)/np.abs(x0sq)**(1-eta/2)
-    if isinstance(decay_factor, (int, float)):
-        decay_factor = max(tiny, decay_factor)
-    else:
-        decay_factor[np.where(np.isnan(decay_factor))] = tiny
-        decay_factor[np.where(decay_factor <= tiny)] = tiny
-
-    return amplitude*np.heaviside(x-center, 1)*decay_factor
-
-
-def power_decay_convolved(x, amplitude=1, center=0, eta=1, res=1):
-    """Step and decay function
     
+    Notes
+    -----
+    Since this function has a divergence, it is unlikely to be appropriate to
+    address real data. It likely needs to convovled with an energy resolution
+    in order to make sense.
+    This function is numerically integrated to impose integrated intensity.
+    As eta is increased above one, the tail of the function extends to
+    large x values. If evaluated over a narrow range, the integrated intensity
+    can be misleading.    
+    """
+    x0sq = (x**2 - center**2 + small_number**2)
+    decay_factor = np.sign(x0sq)/np.abs(x0sq)**(1-eta/2)
+    y = np.heaviside(x - center - small_number, 0)*decay_factor
+    return amplitude*y/np.trapz(y, x=x)
+
+
+def power_decay_convolved(x, amplitude=1, center=0, eta=1, res=.1):
+    """Step and decay function
+    convolved with experimental resoution.
+   
     Parameters
     ----------
     x : array
         independent variable
     amplitude : float
-        factor proportional to height 
+        integrated intensity
     center : float
         pole of intensity onset
     eta : float
@@ -301,20 +310,80 @@ def power_decay_convolved(x, amplitude=1, center=0, eta=1, res=1):
     res : float
         Resolution -- sigma parameter of Gaussian resolution used
         for convolution. FWHM of a gaussian is 2*np.sqrt(2*np.log(2))=2.355
-    
+        Note that this power-decay function only really makes sense if it
+        is convolved with a resolution function as it has a divergent
+        peak intensity.
+
     Returns
     -------
     y : array
         dependent variable
+        
+    Notes
+    -----
+    This function is numerically integrated to impose integrated intensity.
+    As eta is increased above one, the tail of the function extends to
+    large x values. If evaluated over a narrow range, the integrated intensity
+    can be misleading. 
     """
-    step = min(np.abs(np.mean(np.diff(x)))/5, np.abs(res)/20)
+    step = min(np.abs(np.mean(np.diff(x)))/5, np.abs(res)/100)
     x_continuum = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
-    
+
     raw_continuum = power_decay(x_continuum, amplitude=amplitude,
-                                center=center, eta=eta)
+                                center=center, eta=eta,
+                                small_number=step*2)
 
     kernal = make_gaussian_kernal(x_continuum, res)
     y_continuum = convolve(raw_continuum, kernal)
+    return np.interp(x, x_continuum, y_continuum)
+
+
+def power_decay_convolved_bose(x, amplitude=1, center=0, eta=1, kBT=.1, res=1):
+    """Step and decay function
+    multiplied by Bose factor and convolved with experimental resoution.
+   
+    Parameters
+    ----------
+    x : array
+        independent variable
+    amplitude : float
+        integrated intensity
+    center : float
+        pole of intensity onset
+    eta : float
+        decay factor for continuum
+    kBT : float
+        Temperature for Bose factor.
+        kBT should be in the same units as x
+        n.b. kB = 8.617e-5 eV/K
+    res : float
+        Resolution -- sigma parameter of Gaussian resolution used
+        for convolution. FWHM of a gaussian is 2*np.sqrt(2*np.log(2))=2.355
+        Note that this power-decay function only really makes sense if it
+        is convolved with a resolution function as it has a divergent
+        peak intensity.
+
+    Returns
+    -------
+    y : array
+        dependent variable
+
+    Notes
+    -----
+    This function is numerically integrated to impose integrated intensity.
+    As eta is increased above one, the tail of the function extends to
+    large x values. If evaluated over a narrow range, the integrated intensity
+    can be misleading. 
+    """
+    step = min(np.abs(np.mean(np.diff(x)))/5, np.abs(res)/100)
+    x_continuum = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
+
+    raw_continuum = power_decay(x_continuum, amplitude=amplitude,
+                                center=center, eta=eta,
+                                small_number=step*2)
+
+    kernal = make_gaussian_kernal(x_continuum, res)
+    y_continuum = convolve(raw_continuum*bose(x_continuum, kBT), kernal)
     return np.interp(x, x_continuum, y_continuum)
 
 
