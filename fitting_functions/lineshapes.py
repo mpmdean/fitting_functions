@@ -226,7 +226,7 @@ def lorentzianSq2DRot(X, Y, amplitude=1.,
     Yrot = (X - centerx) * sin(angle) + (Y - centery) * cos(angle)
 
     I = amplitude**2/(2*np.pi) * 1/(1 +
-        (((Xrot-centerx)/sigmax)**2 + ((Yrot-centery)/sigmay)**2))**2
+        ((Xrot/sigmax)**2 + (Yrot/sigmay)**2))**2
 
     return I
 
