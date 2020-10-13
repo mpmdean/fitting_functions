@@ -1,5 +1,5 @@
 import numpy as np
-from lmfit.lineshapes import lorentzian, skewed_voigt, tiny
+from lmfit.lineshapes import lorentzian, skewed_voigt, tiny, voigt
 from scipy.special import erf
 
 
@@ -15,7 +15,7 @@ def sin(angle):
 
 def paramagnon(x, amplitude=1, center=0, sigma=.1, res=.1, kBT=.1):
     """Damped harmonic oscillator convolved with resolution
-    
+
     Parameters
     ----------
     x : array
@@ -37,7 +37,7 @@ def paramagnon(x, amplitude=1, center=0, sigma=.1, res=.1, kBT=.1):
 
     Form of equation from https://journals.aps.org/prb/pdf/10.1103/PhysRevB.93.214513
     (eq 4)
-    
+
     N.B. This should be updated to use the function we contributed to lmfit at some point.
     """
     step = min(np.abs(np.mean(np.diff(x))), sigma/20, res/20)
@@ -54,7 +54,7 @@ def paramagnon(x, amplitude=1, center=0, sigma=.1, res=.1, kBT=.1):
 
 def paramagnon_integrated_I(x, amplitude=1, center=0, sigma=.1, res=.1, kBT=.1):
     """Damped harmonic oscillator convolved with resolution
-    
+
     Parameters
     ----------
     x : array
@@ -76,7 +76,7 @@ def paramagnon_integrated_I(x, amplitude=1, center=0, sigma=.1, res=.1, kBT=.1):
 
     Form of equation from https://journals.aps.org/prb/pdf/10.1103/PhysRevB.93.214513
     (eq 4)
-    
+
     N.B. This should be updated to use the function we contributed to lmfit at some point.
     """
     step = min(np.abs(np.mean(np.diff(x))), sigma/20, res/20)
@@ -85,9 +85,9 @@ def paramagnon_integrated_I(x, amplitude=1, center=0, sigma=.1, res=.1, kBT=.1):
     y0 = (2*x_paramagnon*sigma*center /
           (( x_paramagnon**2 - center**2)**2 +
            (x_paramagnon*sigma)**2 )) * bose(x_paramagnon, kBT)
-    
+
     y1 = amplitude*y0/np.trapz(y0, x=x_paramagnon)
-    
+
     kernal = make_gaussian_kernal(x_paramagnon, res)
     y_paramagnon = convolve(y1, kernal)
     return np.interp(x, x_paramagnon, y_paramagnon)
@@ -125,6 +125,21 @@ def make_gaussian_kernal(x, sigma):
     step = np.abs(np.mean(np.diff(x)))
     x_kern = np.arange(-sigma*10, sigma*10, step)
     y = np.exp(-x_kern**2/(2 * sigma**2))
+    return y / np.sum(y)
+
+
+def make_voigt_kernal(x, sigma, gamma):
+    """Return 1-dimensional normalized voigt kernal suitable for performing a convolution
+    This ensures even steps mirroring x.
+        voigt(x, amplitude, center, sigma, gamma) =
+        amplitude*wofz(z).real / (sigma*s2pi)
+
+    see https://en.wikipedia.org/wiki/Voigt_profile
+    """
+    step = np.abs(np.mean(np.diff(x)))
+    width = max((abs(gamma), abs(sigma)))
+    x_kern = np.arange(-width*50, width*50, step)
+    y = voigt(x_kern, sigma=sigma, gamma=gamma)
     return y / np.sum(y)
 
 
@@ -282,7 +297,7 @@ def error(x, amplitude=1., center=0., sigma=1.):
 
 def power_decay(x, amplitude=1, center=0, eta=1, small_number=1e-3):
     """Step and decay function
-   
+
     Parameters
     ----------
     x : array
@@ -296,12 +311,12 @@ def power_decay(x, amplitude=1, center=0, eta=1, small_number=1e-3):
     small_number : float
         Since this is a nasty diverging function, a "small"
         number is needed to suppress the divergence.
-   
+
     Returns
     -------
     y : array
         dependent variable
-    
+
     Notes
     -----
     Since this function has a divergence, it is unlikely to be appropriate to
@@ -310,7 +325,7 @@ def power_decay(x, amplitude=1, center=0, eta=1, small_number=1e-3):
     This function is numerically integrated to impose integrated intensity.
     As eta is increased above one, the tail of the function extends to
     large x values. If evaluated over a narrow range, the integrated intensity
-    can be misleading.    
+    can be misleading.
     """
     x0sq = (x**2 - center**2 + small_number**2)
     decay_factor = np.sign(x0sq)/np.abs(x0sq)**(1-eta/2)
@@ -321,7 +336,7 @@ def power_decay(x, amplitude=1, center=0, eta=1, small_number=1e-3):
 def power_decay_convolved(x, amplitude=1, center=0, eta=1, res=.1):
     """Step and decay function
     convolved with experimental resoution.
-   
+
     Parameters
     ----------
     x : array
@@ -343,13 +358,13 @@ def power_decay_convolved(x, amplitude=1, center=0, eta=1, res=.1):
     -------
     y : array
         dependent variable
-        
+
     Notes
     -----
     This function is numerically integrated to impose integrated intensity.
     As eta is increased above one, the tail of the function extends to
     large x values. If evaluated over a narrow range, the integrated intensity
-    can be misleading. 
+    can be misleading.
     """
     step = min(np.abs(np.mean(np.diff(x)))/5, np.abs(res)/100)
     x_continuum = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
@@ -366,7 +381,7 @@ def power_decay_convolved(x, amplitude=1, center=0, eta=1, res=.1):
 def power_decay_convolved_bose(x, amplitude=1, center=0, eta=1, kBT=.1, res=1):
     """Step and decay function
     multiplied by Bose factor and convolved with experimental resoution.
-   
+
     Parameters
     ----------
     x : array
@@ -398,7 +413,7 @@ def power_decay_convolved_bose(x, amplitude=1, center=0, eta=1, kBT=.1, res=1):
     This function is numerically integrated to impose integrated intensity.
     As eta is increased above one, the tail of the function extends to
     large x values. If evaluated over a narrow range, the integrated intensity
-    can be misleading. 
+    can be misleading.
     """
     step = min(np.abs(np.mean(np.diff(x)))/5, np.abs(res)/100)
     x_continuum = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
@@ -412,16 +427,74 @@ def power_decay_convolved_bose(x, amplitude=1, center=0, eta=1, kBT=.1, res=1):
     return np.interp(x, x_continuum, y_continuum)
 
 
+def power_decay_convolvedvoigt_bose(x, amplitude=1, center=1, eta=1, kBT=.1,
+                                    res=.1, gamma=.1):
+    """Step and decay function
+    multiplied by Bose factor and convolved with voigt experimental resoution.
+
+    Parameters
+    ----------
+    x : array
+        independent variable
+    amplitude : float
+        integrated intensity
+    center : float
+        pole of intensity onset
+    eta : float
+        decay factor for continuum
+    kBT : float
+        Temperature for Bose factor.
+        kBT should be in the same units as x
+        n.b. kB = 8.617e-5 eV/K
+    res : float
+        Resolution -- sigma parameter of voigt resolution used
+        for convolution. FWHM of a gaussian is 2*np.sqrt(2*np.log(2))=2.355
+        Note that this power-decay function only really makes sense if it
+        is convolved with a resolution function as it has a divergent
+        peak intensity.
+    gamma : float
+        Resolution -- gammma parameter of voigt resolution used
+        for convolution.
+
+    Returns
+    -------
+    y : array
+        dependent variable
+
+    Notes
+    -----
+    This function is numerically integrated to impose integrated intensity.
+    As eta is increased above one, the tail of the function extends to
+    large x values. If evaluated over a narrow range, the integrated intensity
+    can be misleading.
+
+    This function can become slow when step becomes small and res or gamma becomes
+    big because the convolution kernal needs to be very large for a long-tailed
+    lorentizian.
+    """
+    step = min(np.abs(np.mean(np.diff(x)))/5, np.abs(res)/100, np.abs(gamma)/100)
+    x_continuum = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
+
+    raw_continuum = power_decay(x_continuum, amplitude=amplitude,
+                                center=center, eta=eta,
+                                small_number=step*2)
+
+    kernal = make_voigt_kernal(x_continuum, sigma=res, gamma=gamma)
+    y_continuum = convolve(raw_continuum*bose(x_continuum, kBT), kernal)
+    return np.interp(x, x_continuum, y_continuum)
+
+
+
 def Bmn(m, n, g):
     """Franck-Condon factor
-    
+
     Parameters
     ----------
     m : int
     n : int
     g : float
         unitless electron phonon coupling factor
-    
+
     Returns
     -------
     factor : float
@@ -457,7 +530,7 @@ def phonon_amplitude(nprime, g, omega0, omega_det, Gamma, terms=100):
     Returns
     -------
     A : float
-        Amplitude (i.e. square root intensity ) for 
+        Amplitude (i.e. square root intensity ) for
         phonon
     """
     A = sum(Bmn(max(nprime, n), min(nprime, n), g)*Bmn(n, 0, g)
@@ -489,21 +562,21 @@ def phonons(x, g=1., omega0=1., sigma=1., omega_det=0., numphonons=15, Gamma=1.)
     Returns
     -------
     A : float
-        Amplitude (i.e. square root intensity ) for 
+        Amplitude (i.e. square root intensity ) for
         phonon
     """
     modes = []
     for nprime in range(1, numphonons + 1):
         A = phonon_amplitude(nprime, g, omega0, omega_det, Gamma, terms=100)
         modes.append(lorentzian(x, amplitude=A, center=omega0*nprime, sigma=sigma))
-        
+
     return np.abs(sum(modes))**2
 
 
 def skewed_voigt_convolved(x, amplitude=1.0, center=0.0, sigma=1.0,
                            gamma=None, skew=0.0, res=1.):
     """skewed_voigt convolved with resolution
-    
+
     Parameters
     ----------
     x : array
@@ -529,7 +602,7 @@ def skewed_voigt_convolved(x, amplitude=1.0, center=0.0, sigma=1.0,
     x_ = np.arange(np.min(x) - res*10, np.max(x) + res*10, step)
 
     y_ = skewed_voigt(x_, amplitude, center, sigma, gamma, skew)
-        
+
     kernal = make_gaussian_kernal(x_, res)
     y_convolved = convolve(y_, kernal)
     return np.interp(x, x_, y_convolved)
