@@ -226,7 +226,7 @@ def lorentzianSq2DRot(X, Y, amplitude=1.,
     Yrot = (X - centerx) * sin(angle) + (Y - centery) * cos(angle)
 
     I = amplitude**2/(2*np.pi) * 1/(1 +
-        (((Xrot-centerx)/sigmax)**2 + ((Yrot-centery)/sigmay)**2))**2
+        ((Xrot/sigmax)**2 + (Yrot/sigmay)**2))**2
 
     return I
 
@@ -238,12 +238,36 @@ def lorentzianSq3D(X, Y, Z, amplitude=1.,
     I = 1/(1 + (((X-centerx)/sigmax)**2 +
                         ((Y-centery)/sigmay)**2 +
                         ((Z-centerz)/sigmaz)**2))
-    I *= amplitude**2/(2*np.pi)
+    I = amplitude**2/(2*np.pi) * I ** 2
     """
     I = 1/(1 + (((X-centerx)/sigmax)**2 +
                         ((Y-centery)/sigmay)**2 +
                         ((Z-centerz)/sigmaz)**2))
-    I = amplitude**2/(2*np.pi) ** 2
+    I = amplitude**2/(2*np.pi) * I ** 2
+    return I
+
+
+def lorentzianSq3DRot(X, Y, Z, amplitude=1.,
+                     centerx=0., centery=0., centerz=0.,
+                     sigmax=1., sigmay=1., sigmaz=1., angle=0):
+    """ Return a 3-dimensional lorentzian squared function, allow the peak rotated in x-y plane
+    Xrot = (X - centerx) * cos(angle) - (Y - centery) * sin(angle)
+    Yrot = (X - centerx) * sin(angle) + (Y - centery) * cos(angle)
+    Z = Z-centerz
+
+    I = 1/(1 + (((Xrot)/sigmax)**2 +
+                        ((Yrot)/sigmay)**2 +
+                        ((Z)/sigmaz)**2))
+    I = amplitude**2/(2*np.pi) ** I **2
+    """
+
+    Xrot = (X - centerx) * cos(angle) - (Y - centery) * sin(angle)
+    Yrot = (X - centerx) * sin(angle) + (Y - centery) * cos(angle)
+    Z = Z-centerz
+
+    I = 1/(1 + ((Xrot/sigmax)**2 + (Yrot/sigmay)**2 + (Z/sigmaz)**2))
+
+    I = amplitude**2/(2*np.pi) * I ** 2
     return I
 
 
