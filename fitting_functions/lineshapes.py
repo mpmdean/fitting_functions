@@ -606,3 +606,15 @@ def skewed_voigt_convolved(x, amplitude=1.0, center=0.0, sigma=1.0,
     kernal = make_gaussian_kernal(x_, res)
     y_convolved = convolve(y_, kernal)
     return np.interp(x, x_, y_convolved)
+
+def convolve_peaks(x, y, sigma=1, func=gaussian):
+    """Convolve data based on normalized peak function.
+
+    This is slow, but handles non-uniform x well.
+    """
+    yout = np.zeros_like(y)
+    for xval, yval in zip(x, y):
+        yout += func(x, amplitude=yval, center=xval, sigma=sigma)
+
+    yout = yout*np.sum(y)/np.sum(yout)
+    return yout
