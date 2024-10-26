@@ -1,6 +1,9 @@
 import numpy as np
-from lmfit.lineshapes import lorentzian, skewed_voigt, tiny, voigt
+from lmfit.lineshapes import lorentzian, gaussian, skewed_voigt, tiny, voigt
 from scipy.special import erf
+
+from scipy.constants import c
+from scipy.signal import convolve
 
 
 def cos(angle):
@@ -618,3 +621,40 @@ def convolve_peaks(x, y, sigma=1, func=gaussian):
 
     yout = yout*np.sum(y)/np.sum(yout)
     return yout
+
+def exp(x):
+    y = np.zeros_like(x)
+    y[x>=0] = 1
+    y[x<0] = np.exp(x[x<0])
+    return y
+
+
+def decay_recover(x, t0=0, decay=0.01, A=1, R1=0.5, tau1=0.5,
+                  R2=0.5, tau2=2):
+    y = A*(exp((t0-x)/decay)
+           - R1*(exp((t0 - x)/tau1))
+           - R2*(exp((t0 - x)/tau2)))
+    return y
+
+
+mm2ps = 1 / (c * 1e3 / 1e12 / 2)
+sigma = 0.115/(2*np.sqrt(2*np.log(2)))/mm2ps
+
+
+def tdep(x, t0=0, decay=0.0001, A=4, R1=0.8, tau1=0.02,
+        R2=0.2, tau2=0.28, C=0,
+        sigma=sigma):
+    dx = min(abs((x[1]-x[0])/5), sigma/10)
+    xeval = np.arange(x.min()-sigma*10, x.max()+sigma+10, dx)
+    ypreconv = decay_recover(xeval, t0=t0, decay=decay, A=A, R1=R1, tau1=tau1,
+                          R2=R2, tau2=tau2)
+    xkern = np.arange(-sigma*5, sigma*5, dx)
+    ykern = gaussian(xkern, sigma=sigma)
+    ykern = ykern/ykern.sum()
+
+    yeval = convolve(ypreconv, ykern)
+
+    
+    y = np.interp(x, xeval, yeval)  + C
+    return y
+
